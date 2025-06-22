@@ -1,0 +1,32 @@
+{
+    "primary_color": "#0066cc",
+    "inner_color": "#ff3366",
+    "text": "https://github.com/denissilantev64/3Dqr",
+    "qr_settings": {
+        "version": 1,
+        "error_correction": "M",
+        "box_size": 10,
+        "border": 4
+    },
+    "3d_settings": {
+        "height": 0.5,
+        "base_thickness": 0.1,
+        "glow_intensity": 0.8,
+        "resolution": 100,
+        "smooth_edges": true,
+        "bevel_depth": 0.05
+    },
+    "output": {
+        "format": ["png", "html", "obj"],
+        "filename": "qr_3d",
+        "width": 800,
+        "height": 600,
+        "dpi": 150
+    },
+    "lighting": {
+        "ambient": 0.3,
+        "diffuse": 0.7,
+        "specular": 0.5,
+        "position": [1, 1, 1]
+    }
+}

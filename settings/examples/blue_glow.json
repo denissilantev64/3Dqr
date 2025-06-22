@@ -1,0 +1,32 @@
+{
+    "primary_color": "#1e3a8a",
+    "inner_color": "#60a5fa",
+    "text": "Blue Glow QR Code Example",
+    "qr_settings": {
+        "version": 2,
+        "error_correction": "H",
+        "box_size": 8,
+        "border": 3
+    },
+    "3d_settings": {
+        "height": 0.8,
+        "base_thickness": 0.15,
+        "glow_intensity": 1.0,
+        "resolution": 120,
+        "smooth_edges": true,
+        "bevel_depth": 0.08
+    },
+    "output": {
+        "format": ["png", "html"],
+        "filename": "blue_glow_qr",
+        "width": 1024,
+        "height": 768,
+        "dpi": 200
+    },
+    "lighting": {
+        "ambient": 0.2,
+        "diffuse": 0.8,
+        "specular": 0.6,
+        "position": [1.5, 1.5, 2]
+    }
+}

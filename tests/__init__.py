@@ -1,0 +1,1 @@
+# Тесты для 3D QR Code Generator

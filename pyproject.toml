@@ -1,0 +1,123 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "3dqr-generator"
+version = "1.0.0"
+description = "Генератор трёхмерных QR-кодов с выпуклой структурой и внутренним свечением"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Denis Silantev", email = "denissilantev64@example.com"}
+]
+maintainers = [
+    {name = "Denis Silantev", email = "denissilantev64@example.com"}
+]
+keywords = ["qr-code", "3d", "visualization", "mesh", "rendering"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "Topic :: Multimedia :: Graphics :: 3D Rendering",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "qrcode[pil]>=7.4.2",
+    "numpy>=1.24.3",
+    "matplotlib>=3.7.1",
+    "plotly>=5.15.0",
+    "Pillow>=10.0.0",
+    "scipy>=1.11.1",
+    "trimesh>=3.22.1",
+    "open3d>=0.17.0",
+    "kaleido>=0.2.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+]
+docs = [
+    "sphinx>=5.0",
+    "sphinx-rtd-theme>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/denissilantev64/3Dqr"
+Repository = "https://github.com/denissilantev64/3Dqr"
+Issues = "https://github.com/denissilantev64/3Dqr/issues"
+Documentation = "https://github.com/denissilantev64/3Dqr#readme"
+
+[project.scripts]
+"3dqr" = "main:main"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["settings/*.json", "settings/examples/*.json"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]

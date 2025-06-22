@@ -1,0 +1,8 @@
+qrcode[pil]>=7.4.2
+numpy>=1.21.0
+matplotlib>=3.5.0
+plotly>=5.0.0
+Pillow>=9.0.0
+scipy>=1.7.0
+trimesh>=3.20.0
+kaleido>=0.2.1

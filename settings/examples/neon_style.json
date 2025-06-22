@@ -1,0 +1,32 @@
+{
+    "primary_color": "#000000",
+    "inner_color": "#00ff41",
+    "text": "Neon Style Matrix QR",
+    "qr_settings": {
+        "version": 3,
+        "error_correction": "M",
+        "box_size": 12,
+        "border": 2
+    },
+    "3d_settings": {
+        "height": 0.3,
+        "base_thickness": 0.05,
+        "glow_intensity": 1.2,
+        "resolution": 150,
+        "smooth_edges": false,
+        "bevel_depth": 0.02
+    },
+    "output": {
+        "format": ["png", "html", "obj", "ply"],
+        "filename": "neon_qr",
+        "width": 800,
+        "height": 600,
+        "dpi": 150
+    },
+    "lighting": {
+        "ambient": 0.1,
+        "diffuse": 0.5,
+        "specular": 0.9,
+        "position": [0, 0, 3]
+    }
+}
