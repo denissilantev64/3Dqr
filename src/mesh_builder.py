@@ -69,7 +69,7 @@ class MeshBuilder:
                                   matrix: np.ndarray, 
                                   height_map: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Создать вершины и грани для 3D меша.
+        Создать вершины и грани для кубической 3D структуры QR-кода.
         
         Args:
             matrix: Матрица QR-кода
@@ -79,39 +79,179 @@ class MeshBuilder:
             Кортеж (вершины, грани)
         """
         height, width = matrix.shape
-        resolution = self.config.settings_3d.resolution
-        
-        # Создание сетки координат
-        x = np.linspace(0, width, resolution)
-        y = np.linspace(0, height, resolution)
-        X, Y = np.meshgrid(x, y)
-        
-        # Интерполяция карты высот
-        Z = self._interpolate_height_map(height_map, X, Y)
-        
-        # Создание вершин
         vertices = []
+        faces = []
+        vertex_count = 0
         
-        # Верхняя поверхность
-        for i in range(resolution):
-            for j in range(resolution):
-                vertices.append([X[i, j], Y[i, j], Z[i, j]])
+        # Параметры кубической структуры
+        block_size = 1.0
+        base_height = 0.3
+        extrude_height = self.config.settings_3d.height
+        gap_size = 0.1  # Зазор между блоками для свечения
         
-        # Нижняя поверхность (базовая плоскость)
-        for i in range(resolution):
-            for j in range(resolution):
-                vertices.append([X[i, j], Y[i, j], 0])
+        # Размеры общего куба
+        total_size = max(width, height) * block_size
         
-        # Боковые стенки для краёв
-        edge_vertices = self._create_edge_vertices(matrix, height_map)
-        vertices.extend(edge_vertices)
+        # 1. Создание базового куба (основания)
+        base_vertices = [
+            [0, 0, 0], [total_size, 0, 0], [total_size, total_size, 0], [0, total_size, 0],  # нижняя грань
+            [0, 0, base_height], [total_size, 0, base_height], [total_size, total_size, base_height], [0, total_size, base_height]  # верхняя грань
+        ]
         
+        base_faces = [
+            [0, 1, 2, 3],  # нижняя грань
+            [4, 7, 6, 5],  # верхняя грань
+            [0, 4, 5, 1],  # передняя грань
+            [2, 6, 7, 3],  # задняя грань
+            [0, 3, 7, 4],  # левая грань
+            [1, 5, 6, 2]   # правая грань
+        ]
+        
+        vertices.extend(base_vertices)
+        faces.extend(base_faces)
+        vertex_count += len(base_vertices)
+        
+        # 2. Создание выпуклых блоков для активных пикселей
+        for i in range(height):
+            for j in range(width):
+                if matrix[i, j]:  # Активный пиксель
+                    # Позиция блока
+                    x = j * block_size + gap_size
+                    y = i * block_size + gap_size
+                    z = base_height
+                    
+                    # Размер блока (с учетом зазоров)
+                    block_w = block_size - 2 * gap_size
+                    block_h = block_size - 2 * gap_size
+                    block_z = extrude_height
+                    
+                    # Создание куба для активного пикселя
+                    block_vertices = [
+                        [x, y, z], [x + block_w, y, z], [x + block_w, y + block_h, z], [x, y + block_h, z],  # нижняя грань
+                        [x, y, z + block_z], [x + block_w, y, z + block_z], [x + block_w, y + block_h, z + block_z], [x, y + block_h, z + block_z]  # верхняя грань
+                    ]
+                    
+                    block_faces = [
+                        [vertex_count + 0, vertex_count + 1, vertex_count + 2, vertex_count + 3],  # нижняя грань
+                        [vertex_count + 4, vertex_count + 7, vertex_count + 6, vertex_count + 5],  # верхняя грань
+                        [vertex_count + 0, vertex_count + 4, vertex_count + 5, vertex_count + 1],  # передняя грань
+                        [vertex_count + 2, vertex_count + 6, vertex_count + 7, vertex_count + 3],  # задняя грань
+                        [vertex_count + 0, vertex_count + 3, vertex_count + 7, vertex_count + 4],  # левая грань
+                        [vertex_count + 1, vertex_count + 5, vertex_count + 6, vertex_count + 2]   # правая грань
+                    ]
+                    
+                    vertices.extend(block_vertices)
+                    faces.extend(block_faces)
+                    vertex_count += len(block_vertices)
+        
+        # 3. Создание элементов внутреннего свечения в зазорах
+        if self.config.settings_3d.glow_intensity > 0:
+            glow_vertices, glow_faces = self._create_glow_elements(matrix, base_height, gap_size, block_size, vertex_count)
+            vertices.extend(glow_vertices)
+            faces.extend(glow_faces)
+        
+        # Центрирование структуры
         vertices = np.array(vertices)
+        center_x = total_size / 2
+        center_y = total_size / 2
+        vertices[:, 0] -= center_x
+        vertices[:, 1] -= center_y
         
-        # Создание граней
-        faces = self._create_faces(resolution, len(edge_vertices))
+        return vertices, np.array(faces)
+    
+    def _create_glow_elements(self, matrix: np.ndarray, base_height: float, 
+                             gap_size: float, block_size: float, 
+                             start_vertex_count: int) -> Tuple[List, List]:
+        """
+        Создать элементы внутреннего свечения в зазорах между блоками.
         
-        return vertices, faces
+        Args:
+            matrix: Матрица QR-кода
+            base_height: Высота основания
+            gap_size: Размер зазора
+            block_size: Размер блока
+            start_vertex_count: Начальный счетчик вершин
+            
+        Returns:
+            Кортеж (вершины свечения, грани свечения)
+        """
+        height, width = matrix.shape
+        glow_vertices = []
+        glow_faces = []
+        vertex_count = start_vertex_count
+        
+        glow_height = base_height + self.config.settings_3d.height * 0.3
+        
+        # Создание тонких светящихся пластин в зазорах
+        for i in range(height):
+            for j in range(width):
+                if matrix[i, j]:  # Активный пиксель
+                    x = j * block_size
+                    y = i * block_size
+                    
+                    # Горизонтальные светящиеся элементы
+                    if j < width - 1 and matrix[i, j + 1]:
+                        glow_x = x + block_size - gap_size/2
+                        glow_y = y + gap_size
+                        glow_w = gap_size
+                        glow_h = block_size - 2 * gap_size
+                        
+                        glow_verts = [
+                            [glow_x, glow_y, base_height], 
+                            [glow_x + glow_w, glow_y, base_height],
+                            [glow_x + glow_w, glow_y + glow_h, base_height], 
+                            [glow_x, glow_y + glow_h, base_height],
+                            [glow_x, glow_y, glow_height], 
+                            [glow_x + glow_w, glow_y, glow_height],
+                            [glow_x + glow_w, glow_y + glow_h, glow_height], 
+                            [glow_x, glow_y + glow_h, glow_height]
+                        ]
+                        
+                        glow_face = [
+                            [vertex_count + 0, vertex_count + 1, vertex_count + 2, vertex_count + 3],
+                            [vertex_count + 4, vertex_count + 7, vertex_count + 6, vertex_count + 5],
+                            [vertex_count + 0, vertex_count + 4, vertex_count + 5, vertex_count + 1],
+                            [vertex_count + 2, vertex_count + 6, vertex_count + 7, vertex_count + 3],
+                            [vertex_count + 0, vertex_count + 3, vertex_count + 7, vertex_count + 4],
+                            [vertex_count + 1, vertex_count + 5, vertex_count + 6, vertex_count + 2]
+                        ]
+                        
+                        glow_vertices.extend(glow_verts)
+                        glow_faces.extend(glow_face)
+                        vertex_count += len(glow_verts)
+                    
+                    # Вертикальные светящиеся элементы
+                    if i < height - 1 and matrix[i + 1, j]:
+                        glow_x = x + gap_size
+                        glow_y = y + block_size - gap_size/2
+                        glow_w = block_size - 2 * gap_size
+                        glow_h = gap_size
+                        
+                        glow_verts = [
+                            [glow_x, glow_y, base_height], 
+                            [glow_x + glow_w, glow_y, base_height],
+                            [glow_x + glow_w, glow_y + glow_h, base_height], 
+                            [glow_x, glow_y + glow_h, base_height],
+                            [glow_x, glow_y, glow_height], 
+                            [glow_x + glow_w, glow_y, glow_height],
+                            [glow_x + glow_w, glow_y + glow_h, glow_height], 
+                            [glow_x, glow_y + glow_h, glow_height]
+                        ]
+                        
+                        glow_face = [
+                            [vertex_count + 0, vertex_count + 1, vertex_count + 2, vertex_count + 3],
+                            [vertex_count + 4, vertex_count + 7, vertex_count + 6, vertex_count + 5],
+                            [vertex_count + 0, vertex_count + 4, vertex_count + 5, vertex_count + 1],
+                            [vertex_count + 2, vertex_count + 6, vertex_count + 7, vertex_count + 3],
+                            [vertex_count + 0, vertex_count + 3, vertex_count + 7, vertex_count + 4],
+                            [vertex_count + 1, vertex_count + 5, vertex_count + 6, vertex_count + 2]
+                        ]
+                        
+                        glow_vertices.extend(glow_verts)
+                        glow_faces.extend(glow_face)
+                        vertex_count += len(glow_verts)
+        
+        return glow_vertices, glow_faces
     
     def _interpolate_height_map(self, 
                                height_map: np.ndarray, 
@@ -275,7 +415,7 @@ class MeshBuilder:
                              glow_map: np.ndarray, 
                              vertex_count: int) -> np.ndarray:
         """
-        Создать цвета для вершин.
+        Создать цвета для вершин кубической структуры.
         
         Args:
             matrix: Матрица QR-кода
@@ -290,43 +430,38 @@ class MeshBuilder:
         primary_rgb = self.config.get_primary_color_rgb()
         inner_rgb = self.config.get_inner_color_rgb()
         
-        resolution = self.config.settings_3d.resolution
         height, width = matrix.shape
+        vertex_idx = 0
         
-        # Цвета для верхней поверхности
-        for i in range(resolution):
-            for j in range(resolution):
-                # Преобразование координат в индексы матрицы
-                matrix_i = int(i * height / resolution)
-                matrix_j = int(j * width / resolution)
-                
-                matrix_i = min(matrix_i, height - 1)
-                matrix_j = min(matrix_j, width - 1)
-                
-                vertex_idx = i * resolution + j
-                
-                if matrix[matrix_i, matrix_j]:
-                    # Активный пиксель - смешивание основного и внутреннего цветов
-                    glow_intensity = glow_map[matrix_i, matrix_j]
+        # 1. Цвета для базового куба (8 вершин)
+        base_color = [c * 0.7 for c in primary_rgb]  # Темнее основного цвета
+        for i in range(8):
+            colors[vertex_idx] = [*base_color, 1.0]
+            vertex_idx += 1
+        
+        # 2. Цвета для выпуклых блоков активных пикселей
+        for i in range(height):
+            for j in range(width):
+                if matrix[i, j]:  # Активный пиксель
+                    # Каждый блок имеет 8 вершин
+                    glow_intensity = glow_map[i, j] if glow_map is not None else 0.5
                     
-                    # Интерполяция между основным и внутренним цветом
-                    color = self._blend_colors(primary_rgb, inner_rgb, glow_intensity)
-                    colors[vertex_idx] = [*color, 1.0]
-                else:
-                    # Неактивный пиксель - прозрачный или базовый цвет
-                    colors[vertex_idx] = [0.2, 0.2, 0.2, 0.3]
+                    # Смешивание основного цвета с эффектом свечения
+                    block_color = self._blend_colors(primary_rgb, inner_rgb, glow_intensity * 0.3)
+                    
+                    for k in range(8):
+                        colors[vertex_idx] = [*block_color, 1.0]
+                        vertex_idx += 1
         
-        # Цвета для нижней поверхности
-        offset = resolution * resolution
-        for i in range(resolution):
-            for j in range(resolution):
-                vertex_idx = offset + i * resolution + j
-                colors[vertex_idx] = [0.1, 0.1, 0.1, 1.0]  # Тёмный базовый цвет
-        
-        # Цвета для боковых стенок
-        edge_offset = 2 * resolution * resolution
-        for i in range(edge_offset, vertex_count):
-            colors[i] = [*primary_rgb, 0.8]  # Основной цвет с прозрачностью
+        # 3. Цвета для элементов свечения
+        if self.config.settings_3d.glow_intensity > 0:
+            # Остальные вершины - это элементы свечения
+            while vertex_idx < vertex_count:
+                # Яркий внутренний цвет для свечения
+                glow_color = [c * 1.2 for c in inner_rgb]  # Ярче внутреннего цвета
+                glow_color = [min(1.0, c) for c in glow_color]  # Ограничение до 1.0
+                colors[vertex_idx] = [*glow_color, 0.8]  # Полупрозрачный
+                vertex_idx += 1
         
         return colors
     
